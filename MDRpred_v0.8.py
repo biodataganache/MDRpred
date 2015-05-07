@@ -66,7 +66,7 @@ def parse_fasta(filename):
 
   return id_list, sequence_list
     
-def main(infile, patternfile, outfile):
+def main(infile, patternfile, outfile, alignout):
   models = []
 
   # parse the patternfile in to models
@@ -100,6 +100,10 @@ def main(infile, patternfile, outfile):
     hits = [0]*len(models)
 
     l = 0
+
+    if alignout:
+      alout = "%s\tSEQ\t%s\n" % (thisthing, seq)
+    
     for model in models:
       result_n = [0]*len(seq)
       if (model[0] == 'NA'):
@@ -112,14 +116,24 @@ def main(infile, patternfile, outfile):
 
       l += 1
 
+      thisresult = [0]*len(seq)
+        
       for (start,end,score) in r:
         for j in range(start, end):
           thiss = 0
           if score: thiss = 1
 
+          thisresult[j] = thiss
           result_n[j] += thiss
           result[j] += thiss
 
+      matchstr = ""
+      for m in thisresult:
+        matchstr = "%s%d" % (matchstr, m)
+          
+      if alignout:
+        alout = "%s%s\tpattern_%d\t%s\n" % (alout, thisthing, l, matchstr)
+        
     #results_matrix = "%s%d\t%d\n" % (results_matrix, start, end)
     for k in result_n:
       st = "+"
@@ -136,22 +150,32 @@ def main(infile, patternfile, outfile):
         result[q] = result[q]/float(len(models))
 
     out = "%d\t%s\t%d" % (i, thisthing, sum(hits))
+    outp = ""
     for m in hits:
-      out = "%s\t%d" % (out, m)
-
+      outp = "%s\t%d" % (outp, m)
+    out = "%s%s" % (out, outp)
+      
     #print out
     #print results_matrix
     
     out = "%s\t" % out
-    
+
+    outsum = ""
     #sys.stdout.write("%d\t" % i)
     for this in result:
       x = int(this*10)
       
       if x == 10: x = "+"
-      out = "%s%s" % (out, x)
+      outsum = "%s%s" % (outsum, x)
 
-    out = "%s\n" % out
+    out = "%s%s\n" % (out, outsum)
+
+    if alignout:
+      alo = open(alignout, "a")
+      alo.write(alout)
+      alo.write("%s\tSummary\t%s\n" % (thisthing, outsum))
+      alo.close()
+
     if outfile:
       outfilehandle.write(out)
     else:
@@ -169,6 +193,6 @@ if __name__ == "__main__":
   parser.add_argument("-i", "--infile", help="FASTA format file to query")
   parser.add_argument("-p", "--patternfile", help="Pattern file for search", default="PILGram_PATTERNS_MDRpred.txt")
   parser.add_argument("-o", "--outfile", help="Output filename")
+  parser.add_argument("-a", "--alignout", help="Output filename for a model alignment file")
 
   arguments = parser.parse_args()
-  main(arguments.infile, arguments.patternfile, arguments.outfile)
